@@ -200,6 +200,7 @@ terrain draws over them by depth
 
 * Shader packs: no shadows on LODs yet (the pack's shadow maps aren't passed in), packs that render into vanilla depth
   aren't supported, packs without Voxy support show no LODs.
+* Known Shader packs: Complementary show visual glitches. See issues.
 * Thin dark lines can show over LOD water. They also show when the game runs on OpenGL, so the interop isn't the cause.
 * Only Windows.
 
