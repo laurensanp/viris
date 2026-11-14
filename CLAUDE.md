@@ -86,6 +86,11 @@ GitHub has no API for it: upload by hand in the repo's Settings, Social preview.
   depth into `patchDepth`; noisetex and `texture.gbuffers.*` PNGs come from the pack (`customTexture`); other colortexN/gauxN
   samplers are copied from Vulkan after deferred into `packInputs` and read when the set comes round (3 frames old, so
   reflections lag slightly in motion). Black shores were reflections of black.
+  LOD shadows lag when turning (2026-11-14, issue #1, Complementary): its patch reads screen-space shadows (colortex18)
+  and reflections "of the previous frame" and reprojects them by one frame, but packInputs are SETS frames old. The
+  patch's uniform block (`PackPipeline.uniformLayout`, not the pack's Vulkan passes) now gives vx*Prev and
+  previousCameraPosition* from SETS frames ago (ring per frame, `VoxyPackUniforms.frames()`). Verified in dev with a
+  temporary hook turning 1.5 deg/frame at y 200, time 11000: moving and still shots match, before the shadows were off.
   Seam at the render distance + far water/reflections clearer than the fogged terrain (same day, user's shots, Unbound at
   sunset, reproduced in dev from y 110 pitch 35, `time set 11800` every tick, RD 8 vs 16 of the same spot): two causes. (1) Vitrail
   binds a black stand-in for `vxDepthTexOpaque` in geometry programs ("read one pixel, because nothing fills them yet"), and

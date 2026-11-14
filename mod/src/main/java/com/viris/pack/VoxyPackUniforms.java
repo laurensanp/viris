@@ -22,12 +22,14 @@ public final class VoxyPackUniforms {
     private static final Matrix4f previousViewProjection = new Matrix4f();
     private static float nearPlane = 16.0F;
     private static float farPlane = 3000.0F;
+    private static long frames;
 
     private VoxyPackUniforms() {
     }
 
     /** Called once per frame with the viewport Voxy draws with. */
     public static void update(Viewport<?> viewport) {
+        frames++;
         previousModelView.set(modelView);
         previousProjection.set(projection);
         previousViewProjection.set(viewProjection);
@@ -38,6 +40,11 @@ public final class VoxyPackUniforms {
         unreverse(viewProjection.set(viewport.MVP), reverse, zeroToOne);
         nearPlane = viewport.nearPlane;
         farPlane = viewport.farPlane;
+    }
+
+    /** Frames Voxy drew so far (one image set each). */
+    public static long frames() {
+        return frames;
     }
 
     private static void unreverse(Matrix4f matrix, boolean reverse, boolean zeroToOne) {

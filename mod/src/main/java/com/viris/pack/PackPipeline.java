@@ -152,6 +152,16 @@ public final class PackPipeline {
 
     // --- uniforms: a std140 block of the patch's uniform names, values read from Vitrail each frame ---
 
+    /** Previous-frame uniforms and the current ones they are taken from. */
+    private static final Map<String, String> PREVIOUS = Map.of(
+        "vxModelViewPrev", "vxModelView",
+        "vxProjPrev", "vxProj",
+        "vxViewProjPrev", "vxViewProj",
+        "previousCameraPosition", "cameraPosition",
+        "previousCameraPositionFract", "cameraPositionFract",
+        "previousCameraPositionInt", "cameraPositionInt",
+        "previousCameraPositionUnshifted", "cameraPositionUnshifted");
+
     private IrisVoxyRenderPipelineData.StructLayout uniformLayout() {
         UniformCatalog catalog = pack.values().catalog();
         List<String> names = new ArrayList<>();
@@ -188,11 +198,42 @@ public final class PackPipeline {
         }
         layout.append('}');
         int total = (offset + 15) / 16 * 16;
+        // The pack targets the patch reads (packInputs) are SETS frames old, not one: its "previous frame"
+        // values must be from that frame too, else reprojected screen-space shadows and reflections lag.
+        UniformSource[] delayed = new UniformSource[names.size()];
+        for (int i = 0; i < delayed.length; i++) {
+            String current = PREVIOUS.get(names.get(i));
+            delayed[i] = current == null ? null : catalog.source(current);
+        }
+        ByteBuffer historyBuffer = ByteBuffer.allocateDirect(total * VoxyFrame.SETS);
+        ByteBuffer heldBuffer = ByteBuffer.allocateDirect(total);
+        boolean[] filled = new boolean[VoxyFrame.SETS];
+        long[] lastFrame = {-1};
+        boolean[] heldValid = {false};
         Val val = new Val();
         LongConsumer updater = pointer -> {
             WorldState world = pack.values().world();
+            long history = MemoryUtil.memAddress(historyBuffer);
+            long held = MemoryUtil.memAddress(heldBuffer);
+            long frame = VoxyPackUniforms.frames();
+            int slot = (int) (frame % VoxyFrame.SETS);
+            if (frame != lastFrame[0]) {
+                lastFrame[0] = frame;
+                heldValid[0] = filled[slot];
+                MemoryUtil.memCopy(history + (long) slot * total, held, total);
+                for (int i = 0; i < offsets.length; i++) {
+                    if (delayed[i] != null) {
+                        write(delayed[i], shapes.get(i), world, val, history + (long) slot * total + offsets[i]);
+                    }
+                }
+                filled[slot] = true;
+            }
             for (int i = 0; i < offsets.length; i++) {
-                write(sources.get(i), shapes.get(i), world, val, pointer + offsets[i]);
+                if (delayed[i] != null && heldValid[0]) {
+                    MemoryUtil.memCopy(held + offsets[i], pointer + offsets[i], size(shapes.get(i)));
+                } else {
+                    write(sources.get(i), shapes.get(i), world, val, pointer + offsets[i]);
+                }
             }
         };
         return new IrisVoxyRenderPipelineData.StructLayout(total, layout.toString(), updater);

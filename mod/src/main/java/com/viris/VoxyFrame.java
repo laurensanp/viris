@@ -130,7 +130,7 @@ public final class VoxyFrame {
     private static FogParameters fog;
 
     /** Image sets used in turn, so GL draws frame N while Vulkan may still read frames N-1 and N-2. */
-    private static final int SETS = 3;
+    public static final int SETS = 3;
     private static final ImageSet[] sets = new ImageSet[SETS];
     private static int frame;
     private static long lastRecreate;
