@@ -172,6 +172,7 @@ IHYZKsvL, created 2026-11-01 by API, still waiting for review). New version: POS
 Fabric API required, Vitrail optional), then PATCH /v3/version `client_only`. Gallery: 4 images (retaken 2026-11-02 with DLSS model M; dev world, `gamemode spectator`, `tp @p 0 130 0 -90 10` at time 2000, compare shot without the Voxy and VIRIS jars).
 
 Newest first:
+- v0.4.1 (2026-11-14): LOD shadows/reflections no longer lag when turning (Complementary, issue #1). Modrinth R2dopcva.
 - v0.4.0 (2026-11-09): Photon works (LOD colours and water), Vitrail log copied to logs/vitrail.log in Lunar. Modrinth bez0iC7n.
 - v0.3.6 (2026-11-03): LOD water like the pack's own, no seam from clear near water, one surface height. Modrinth thQ4sFuA.
 - v0.3.5 (2026-11-02): Vulkan first when the Graphics API option is on its default. Modrinth TLmz6juf.
