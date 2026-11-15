@@ -168,8 +168,10 @@ public final class VoxyFrame {
         /** Vulkan signalled vkDone and GL hasn't waited for it yet. */
         boolean vkDonePending;
 
-        /** Shader pack mode: copies of the colour targets Voxy's pack patch wrote, and its depth (far = 1). */
+        /** Shader pack mode: the colour targets Voxy's pack patch draws into, and its depth (far = 1). */
         Interop.SharedTexture[] packTargets;
+        /** GL names of {@link #packTargets}. */
+        int[] packTargetIds;
         /** The pack's colour targets its Voxy patch reads, from when this set was last composited. */
         Interop.SharedTexture[] packInputs = new Interop.SharedTexture[0];
         Interop.SharedTexture vxOpaque;
@@ -200,8 +202,8 @@ public final class VoxyFrame {
             return out;
         }
 
-        void ensurePack(int count, int inputs, int width, int height) {
-            if (packTargets != null && packTargets.length == count && packInputs.length == inputs
+        void ensurePack(int count, GpuFormat[] inputFormats, int width, int height) {
+            if (packTargets != null && packTargets.length == count && inputsIn(inputFormats)
                 && vxOpaque.texture().getWidth(0) == width
                 && vxOpaque.texture().getHeight(0) == height) {
                 return;
@@ -211,15 +213,29 @@ public final class VoxyFrame {
             closePack();
             int usage = GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_TEXTURE_BINDING;
             packTargets = new Interop.SharedTexture[count];
+            packTargetIds = new int[count];
             for (int i = 0; i < count; i++) {
                 packTargets[i] = Interop.createTexture("Voxy pack target", usage, GpuFormat.RGBA32_FLOAT, GL45C.GL_RGBA32F, width, height);
+                packTargetIds[i] = packTargets[i].glTexture();
             }
-            packInputs = new Interop.SharedTexture[inputs];
-            for (int i = 0; i < inputs; i++) {
-                packInputs[i] = Interop.createTexture("Voxy pack input", usage, GpuFormat.RGBA32_FLOAT, GL45C.GL_RGBA32F, width, height);
+            packInputs = new Interop.SharedTexture[inputFormats.length];
+            for (int i = 0; i < inputFormats.length; i++) {
+                packInputs[i] = Interop.createTexture("Voxy pack input", usage, inputFormats[i], glFormat(inputFormats[i]), width, height);
             }
             vxOpaque = Interop.createTexture("Voxy depth opaque", usage, GpuFormat.R32_FLOAT, GL45C.GL_R32F, width, height);
             vxTrans = Interop.createTexture("Voxy depth translucent", usage, GpuFormat.R32_FLOAT, GL45C.GL_R32F, width, height);
+        }
+
+        private boolean inputsIn(GpuFormat[] formats) {
+            if (packInputs.length != formats.length) {
+                return false;
+            }
+            for (int i = 0; i < formats.length; i++) {
+                if (packInputs[i].texture().getFormat() != formats[i]) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         void closePack() {
@@ -433,21 +449,20 @@ public final class VoxyFrame {
         }
         ensureResources(width, height, main.getColorTexture().getFormat());
         ImageSet set = current;
-        set.ensurePack(packPipeline.targets.length, packPipeline.inputTargets.size(), width, height);
+        set.ensurePack(packPipeline.targets.length, inputFormats(), width, height);
         set.waitForVulkan();
         ensurePackSource(width, height);
-        packPipeline.clearTargets();
+        packPipeline.clearTargets(set.packTargetIds);
         GL45C.glClearTexImage(packSourceDepth, 0, GL45C.GL_DEPTH_COMPONENT, GL45C.GL_FLOAT, new float[] {clearDepth()});
         Viewport<?> viewport = system.setupViewport(projection, modelView, fog, width, height, cameraX, cameraY, cameraZ);
         if (viewport == null) {
             return;
         }
         com.viris.pack.VoxyPackUniforms.update(viewport);
+        // Voxy draws straight into the set's shared targets; its own ones go back so it never keeps a set's image.
+        packPipeline.attach(set.packTargetIds);
         system.renderOpaque(viewport, packSourceDepth, packSourceColour);
-        for (int i = 0; i < packPipeline.targets.length; i++) {
-            GL45C.glCopyImageSubData(packPipeline.targetTextures[i], GL45C.GL_TEXTURE_2D, 0, 0, 0, 0,
-                set.packTargets[i].glTexture(), GL45C.GL_TEXTURE_2D, 0, 0, 0, 0, width, height, 1);
-        }
+        packPipeline.attach(packPipeline.targetTextures);
         int[] depths = com.viris.pack.PackPipeline.voxyDepths(packPipeline.data().thePipeline);
         if (depths != null) {
             com.viris.pack.DepthConvert.run(depths[0], set.vxOpaque.glTexture(), width, height);
@@ -629,7 +644,11 @@ public final class VoxyFrame {
             if (source == null) {
                 continue;
             }
-            CompiledRenderPipeline pipeline = PACK_COMPOSITES.computeIfAbsent("input", k -> packInputPipeline());
+            if (inputSources[i] == null) {
+                inputSources[i] = source.texture().getFormat();
+            }
+            GpuFormat format = set.packInputs[i].texture().getFormat();
+            CompiledRenderPipeline pipeline = PACK_COMPOSITES.computeIfAbsent("input " + format, k -> packInputPipeline(format));
             try (RenderPass pass = encoder.createRenderPass(() -> "Voxy pack input", set.packInputs[i].view(), Optional.empty())) {
                 pass.setPipeline(pipeline);
                 pass.setUniform("Source", source, nearest);
@@ -638,7 +657,46 @@ public final class VoxyFrame {
         }
     }
 
-    private static CompiledRenderPipeline packInputPipeline() {
+    /**
+     * Formats of the pack's targets its LOD water reads, as first seen after deferred (null until then). The
+     * copies take the same format where GL has it: a bit-exact copy at a fraction of RGBA32F's bandwidth.
+     */
+    private static GpuFormat[] inputSources = new GpuFormat[0];
+
+    private static GpuFormat[] inputFormats() {
+        int count = packPipeline.inputTargets.size();
+        if (inputSources.length != count) {
+            inputSources = new GpuFormat[count];
+        }
+        GpuFormat[] out = new GpuFormat[count];
+        for (int i = 0; i < count; i++) {
+            out[i] = glFormat(inputSources[i]) != 0 ? inputSources[i] : GpuFormat.RGBA32_FLOAT;
+        }
+        return out;
+    }
+
+    /** GL's internal format for a colour format the copy shader reads and writes as float, else 0. */
+    private static int glFormat(GpuFormat format) {
+        return format == null ? 0 : switch (format) {
+            case R8_UNORM -> GL45C.GL_R8;
+            case RG8_UNORM -> GL45C.GL_RG8;
+            case RGBA8_UNORM -> GL45C.GL_RGBA8;
+            case R16_UNORM -> GL45C.GL_R16;
+            case RG16_UNORM -> GL45C.GL_RG16;
+            case RGBA16_UNORM -> GL45C.GL_RGBA16;
+            case R16_FLOAT -> GL45C.GL_R16F;
+            case RG16_FLOAT -> GL45C.GL_RG16F;
+            case RGBA16_FLOAT -> GL45C.GL_RGBA16F;
+            case R32_FLOAT -> GL45C.GL_R32F;
+            case RG32_FLOAT -> GL45C.GL_RG32F;
+            case RGBA32_FLOAT -> GL45C.GL_RGBA32F;
+            case RGB10A2_UNORM -> GL45C.GL_RGB10_A2;
+            case RG11B10_FLOAT -> GL45C.GL_R11F_G11F_B10F;
+            default -> 0;
+        };
+    }
+
+    private static CompiledRenderPipeline packInputPipeline(GpuFormat format) {
         PACK_SHADERS.put(NAMESPACE + ":packinput", """
             #version 330
             #extension GL_ARB_separate_shader_objects : require
@@ -650,7 +708,8 @@ public final class VoxyFrame {
             """);
         return compile(fullscreen("packinput", BindGroupLayout.builder()
                 .withUniform("Source", UniformType.COMBINED_IMAGE_SAMPLER).build())
-            .withColorTargetState(0, new ColorTargetState(Optional.empty(), GpuFormat.RGBA32_FLOAT, ColorTargetState.WRITE_ALL))
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/packinput_" + format.name().toLowerCase(java.util.Locale.ROOT)))
+            .withColorTargetState(0, new ColorTargetState(Optional.empty(), format, ColorTargetState.WRITE_ALL))
             .build());
     }
 
@@ -734,6 +793,7 @@ public final class VoxyFrame {
     private static void dropPackPipeline() {
         GL45C.glFinish();
         packReadSet = null;
+        inputSources = new GpuFormat[0];
         // Forget which pack it was built for, else the same pack coming back (shaders toggled or reloaded) finds an
         // equal key and never builds the pipeline again: no LODs.
         packKey = "";

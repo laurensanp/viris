@@ -547,11 +547,31 @@ public final class PackPipeline {
     // --- per frame ---
 
     /** Before Voxy draws: the targets start empty, as the pack's own targets are at the start of a frame. */
-    public void clearTargets() {
-        for (int texture : targetTextures) {
+    public void clearTargets(int[] textures) {
+        for (int texture : textures) {
             GL45C.glClearTexImage(texture, 0, GL45C.GL_RGBA, GL45C.GL_FLOAT, new float[] {0, 0, 0, 0});
         }
         GL45C.glClearTexImage(patchDepth, 0, GL45C.GL_RED, GL45C.GL_FLOAT, new float[] {1, 1, 1, 1});
+    }
+
+    /**
+     * Points Voxy's framebuffers at {@code textures} (one per {@link #targets}), as its constructor did with
+     * {@link #targetTextures}: Voxy then draws straight into them, no copy afterwards.
+     */
+    public void attach(int[] textures) {
+        IrisVoxyRenderPipeline pipeline = data.thePipeline;
+        attach(pipeline.fb.framebuffer.id, patch.opaqueTargets(), textures);
+        attach(pipeline.fbTranslucent.framebuffer.id, patch.translucentTargets(), textures);
+    }
+
+    private void attach(int framebuffer, int[] drawTargets, int[] textures) {
+        for (int i = 0; i < drawTargets.length; i++) {
+            for (int j = 0; j < targets.length; j++) {
+                if (targets[j] == drawTargets[i]) {
+                    GL45C.glNamedFramebufferTexture(framebuffer, GL45C.GL_COLOR_ATTACHMENT0 + i, textures[j], 0);
+                }
+            }
+        }
     }
 
     /** Voxy's opaque and translucent depth (its framebuffers inside the running pipeline), or 0. */
