@@ -20,7 +20,8 @@ own, unchanged renderer on Vulkan: it opens a hidden OpenGL context next to the 
 images both APIs share (GL/Vulkan interop), and the game blends them in before the world's terrain. The picture is
 Voxy's own (textures, lighting, water, fog, SSAO), not an imitation.
 
-Status: **experimental**, personal project, Windows only. Tested on an RTX 4060 Ti (driver 617, Windows 11). Bug
+Status: **experimental**, personal project, Windows only. Tested on an RTX 4060 Ti (driver 617, Windows 11); AMD
+Radeon (RX 6500 XT) reported working by a contributor since 0.5.0. Bug
 reports welcome in the [issues](https://github.com/laurensanp/viris/issues).
 
 The project was called `voxy-vulkan` before 0.3.0.
@@ -45,7 +46,7 @@ The project was called `voxy-vulkan` before 0.3.0.
 | | |
 |---|---|
 | OS | Windows 10 / 11, 64-bit |
-| GPU | A driver with OpenGL/Vulkan interop (`GL_EXT_memory_object_win32`, `GL_EXT_semaphore_win32`; NVIDIA has it) |
+| GPU | A driver with OpenGL/Vulkan interop (`GL_EXT_memory_object_win32`, `GL_EXT_semaphore_win32`; NVIDIA and AMD have it) |
 | Game | Minecraft **26.3** with Fabric Loader **0.20.1+** |
 
 Mods, all in `.minecraft/mods/` (or the Lunar profile's `mods/`):
