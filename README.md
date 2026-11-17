@@ -6,22 +6,22 @@
 
 **Voxy LODs on Minecraft's Vulkan renderer.**
 
-![Vulkan](https://img.shields.io/badge/Vulkan-3D8BFF?logo=vulkan&logoColor=white)
-![OpenGL interop](https://img.shields.io/badge/OpenGL-interop-3D8BFF?logo=opengl&logoColor=white)
-![Voxy](https://img.shields.io/badge/Voxy-LODs-3D8BFF?logoColor=white)
-![Vitrail](https://img.shields.io/badge/Vitrail-Shaders-3D8BFF?logoColor=white)
+![Vulkan](https://shields.io)
+![OpenGL interop](https://shields.io)
+![Voxy](https://shields.io)
+![Vitrail](https://shields.io)
 
 </div>
 
 ---
 
-[Voxy](https://modrinth.com/mod/voxy) only renders through OpenGL and refuses the Vulkan backend. VIRIS runs Voxy's
+[Voxy](https://modrinth.com) only renders through OpenGL and refuses the Vulkan backend. VIRIS runs Voxy's
 own, unchanged renderer on Vulkan: it opens a hidden OpenGL context next to the game's Vulkan device, Voxy draws into
 images both APIs share (GL/Vulkan interop), and the game blends them in before the world's terrain. The picture is
 Voxy's own (textures, lighting, water, fog, SSAO), not an imitation.
 
-Status: **experimental**, personal project, Windows only. Tested on an RTX 4060 Ti (driver 617, Windows 11). Bug
-reports welcome in the [issues](https://github.com/laurensanp/viris/issues).
+Status: **experimental**. Tested on NVIDIA RTX 4060 Ti (driver 617, Windows 11) and AMD Radeon RX 6500 XT (Adrenalin
+26.11.1, Windows 11). Bug reports welcome in the [issues](https://github.com).
 
 The project was called `voxy-vulkan` before 0.3.0.
 
@@ -44,19 +44,19 @@ The project was called `voxy-vulkan` before 0.3.0.
 
 | | |
 |---|---|
-| OS | Windows 10 / 11, 64-bit |
-| GPU | A driver with OpenGL/Vulkan interop (`GL_EXT_memory_object_win32`, `GL_EXT_semaphore_win32`; NVIDIA has it) |
+| OS | Windows 10 / 11 (64-bit) or Linux (64-bit) |
+| GPU | A driver with OpenGL/Vulkan external memory interop (`GL_EXT_memory_object_win32` on Windows, `GL_EXT_memory_object_fd` on Linux; NVIDIA and AMD supported) |
 | Game | Minecraft **26.3** with Fabric Loader **0.20.1+** |
 
 Mods, all in `.minecraft/mods/` (or the Lunar profile's `mods/`):
 
 | Mod | Where from | Needed for |
 |---|---|---|
-| `viris-<version>+mc26.3.jar` (this mod) | [Modrinth](https://modrinth.com/mod/viris) or [Releases](https://github.com/laurensanp/viris/releases) | Voxy on Vulkan |
-| [Voxy](https://modrinth.com/mod/voxy) 0.2.20-beta | Modrinth | the LODs |
-| [Sodium](https://modrinth.com/mod/sodium) 0.9.x for 26.3 | Modrinth | the terrain pass hook |
-| [Fabric API](https://modrinth.com/mod/fabric-api) | Modrinth | Voxy |
-| [Vitrail](https://modrinth.com/mod/vitrail-shaders) for 26.3 (tested: 0.13.0-beta) | Modrinth | optional, shader packs on Vulkan |
+| `viris-<version>+mc26.3.jar` (this mod) | [Modrinth](https://modrinth.com) or [Releases](https://github.com) | Voxy on Vulkan |
+| [Voxy](https://modrinth.com) 0.2.20-beta | Modrinth | the LODs |
+| [Sodium](https://modrinth.com) 0.9.3-beta.4 or earlier for 26.3 | Modrinth | the terrain pass hook (note: `0.9.3-beta.5` breaks Voxy's own mixin) |
+| [Fabric API](https://modrinth.com) | Modrinth | Voxy |
+| [Vitrail](https://modrinth.com) for 26.3 (tested: 0.13.0-beta) | Modrinth | optional, shader packs on Vulkan |
 
 ## Install (players)
 
@@ -85,7 +85,7 @@ setting matters:
 
 ## Shader packs (Vitrail)
 
-[Vitrail](https://github.com/avpbynf/Vitrail-Shaders) (LGPL-3.0, by avpbynf) runs OptiFine-format shader packs on
+[Vitrail](https://github.com) (LGPL-3.0, by avpbynf) runs OptiFine-format shader packs on
 Minecraft's Vulkan renderer. It is a separate mod, not part of this repository.
 
 Packs with Voxy support (`voxy.json` in the pack: Complementary, BSL, Photon, Solas, MakeUp, ...) draw the LODs with
@@ -96,11 +96,11 @@ Packs without Voxy support show no LODs while they are on.
 
 ## Works with
 
-[SIRIS](https://github.com/laurensanp/siris) (DLSS Super Resolution + Frame Generation): install it next to this mod if
+[SIRIS](https://github.com) (DLSS Super Resolution + Frame Generation): install it next to this mod if
 you want those. It is not required, and it runs without this mod too. Use SIRIS 1.1.4 or newer, older versions make
 the LODs lose their colour when you join a world a second time.
 
-[Voxy Server Side](https://modrinth.com/plugin/voxy-server-side) (LODs sent by the server): it feeds Voxy's own data,
+[Voxy Server Side](https://modrinth.com) (LODs sent by the server): it feeds Voxy's own data,
 VIRIS only draws.
 
 ## Performance
@@ -118,6 +118,7 @@ Numbers vary with the scene and with whatever else runs on the PC.
 * **No LODs**: search `logs/latest.log` for `VIRIS`. `could not create an OpenGL 4.6 context` or `can't share memory`
   followed by `Voxy stays off` mean the driver lacks the interop: choose OpenGL as the Graphics API and Voxy draws by
   itself. `drawing Voxy failed, LODs stay off for this session` is a bug, please attach the log to an issue.
+* **Crash on startup with Sodium 0.9.3-beta.5**: Voxy `0.2.20-beta` fails to inject into Sodium `0.9.3-beta.5` (`MixinDefaultChunkRenderer`). Use Sodium `0.9.3-beta.4` or `0.9.2` until Voxy updates.
 * **No LODs with a shader pack only**: the pack has no Voxy support, see [Shader packs](#shader-packs-vitrail).
 * **Grey LOD outlines after joining a world again**: update SIRIS to 1.1.4 or newer, see [Works with](#works-with).
 * **Long hangs, or the game stops after a 5 s submit timeout**: video memory is full. Close other games (a second
@@ -132,19 +133,18 @@ Everything that is ours is in this repository. What is not ours is downloaded, n
 
 | Item | Where it goes | Source |
 |---|---|---|
-| Voxy 0.2.20-beta jar (compile only) | `libs/voxy-0.2.20-beta.jar` | [Modrinth](https://modrinth.com/mod/voxy) |
-| Sodium 0.9.2 jar (compile only) | `libs/sodium-fabric-0.9.2+mc26.3.jar` | [Modrinth](https://modrinth.com/mod/sodium/version/mc26.3-0.9.2-fabric) |
-| Vitrail 0.13.0-beta jar (compile only) | `libs/vitrail-0.13.0-beta+mc26.3.jar` | [Modrinth](https://modrinth.com/mod/vitrail-shaders) |
+| Voxy 0.2.20-beta jar (compile only) | `libs/voxy-0.2.20-beta.jar` | [Modrinth](https://modrinth.com) |
+| Sodium 0.9.2 jar (compile only) | `libs/sodium-fabric-0.9.2+mc26.3.jar` | [Modrinth](https://modrinth.com/version/mc26.3-0.9.2-fabric) |
+| Vitrail 0.13.0-beta jar (compile only) | `libs/vitrail-0.13.0-beta+mc26.3.jar` | [Modrinth](https://modrinth.com) |
 | Sodium, Fabric API, Voxy, Vitrail jars (test runs) | `mod/run/mods/` | Modrinth |
 | Shader packs (test runs) | `mod/run/shaderpacks/` | Modrinth (Solas, Complementary, ...) |
 
-Requirements: Windows 10/11, a GPU driver with the interop, **JDK 25** (Gradle needs it in `JAVA_HOME`), git.
+Requirements: Windows 10/11 or Linux, a GPU driver with the interop, **JDK 25** (Gradle needs it in `JAVA_HOME`), git.
 
-```bat
-git clone https://github.com/laurensanp/viris.git
-cd viris\mod
-set JAVA_HOME=C:\path\to\jdk-25
-gradlew build                                             :: build\libs\viris-*.jar
+```bash
+git clone https://github.com
+cd viris/mod
+export JAVA_HOME=/path/to/jdk-25   # on Windows: set JAVA_HOME=C:\(\path\to\jdk-25 ./\)gradlew build                    # build/libs/viris-*.jar
 ```
 
 ### Test loop
@@ -158,12 +158,12 @@ gradlew build                                             :: build\libs\viris-*.
 
 Then, from `mod`:
 
-```bat
-gradlew runClient --args="--quickPlaySingleplayer <world>"
+```bash
+./gradlew runClient --args="--quickPlaySingleplayer <world>"
 ```
 
 Meshing takes a few seconds after joining. If Gradle says "Could not connect to the Gradle daemon", run
-`gradlew --stop` and try again.
+`./gradlew --stop` and try again.
 
 More background for contributors: [`CLAUDE.md`](CLAUDE.md) (status, design, test notes).
 
@@ -172,29 +172,30 @@ More background for contributors: [`CLAUDE.md`](CLAUDE.md) (status, design, test
 ```
 Minecraft (RenderPearl Vulkan backend)                 hidden OpenGL 4.6 context (Voxy's renderer)
 ──────────────────────────────────────                 ───────────────────────────────────────────
-device with external memory + semaphores ────────────▶ imports the shared images
-main pass starts, Vulkan waits ──────────────────────▶ Voxy draws its LODs into a shared image set
-blends colour and depth in where Voxy drew ◀────────── signals when it is done
+device with external memory ─────────────────────────▶ imports the shared images
+main pass starts ────────────────────────────────────▶ Voxy draws its LODs and syncs via glFenceSync
+blends colour and depth in where Voxy drew ◀────────── OpenGL queue completes before Vulkan reads
 terrain draws over them by depth
-  (Vitrail: the pack's own Voxy code, its gbuffer targets get the LODs where the scene depth is clear)
+(Vitrail: the pack's own Voxy code, its gbuffer targets get the LODs where the scene depth is clear)
 ```
 
 * Voxy's jar is used as installed. Its device check, its Iris hook and its draw hook in Sodium are switched off on
   Vulkan by mixins at runtime; on OpenGL they stay as they are.
-* Three sets of shared images are used in turn, each with its own pair of semaphores.
-* The images come from a Vulkan memory pool with exportable memory and are imported with
-  `GL_EXT_memory_object_win32`.
+* Three sets of shared images are used in turn (more than RenderPearl's two in-flight submits) and synchronized via
+  `glFenceSync` + `glClientWaitSync` before Vulkan reads them.
+* The images come from a Vulkan memory pool with exportable dedicated memory and are imported with
+  `GL_EXT_memory_object_win32` (Windows) or `GL_EXT_memory_object_fd` (Linux).
 * The block atlas and the lightmap are read on the Vulkan side and handed to OpenGL.
 
 | Path | What |
 |------|------|
 | `mod/.../VoxyFrame.java` | the frame: calls Voxy, blends its result in, shared image sets |
 | `mod/.../GlContext.java` | the hidden OpenGL context |
-| `mod/.../Interop.java` | images and semaphores shared between Vulkan and OpenGL |
+| `mod/.../Interop.java` | images shared between Vulkan and OpenGL (Win32 handles and POSIX FDs) |
 | `mod/.../AtlasReader.java` | rebuilds the block atlas from the sprites' images for Voxy |
 | `mod/.../VirisMixinPlugin.java` | switches off Voxy's OpenGL-only hooks on Vulkan |
 | `mod/.../pack/` | shader packs: the pack's Voxy patch, Voxy's pack pipeline, uniforms, depth conversion |
-| `mod/.../mixin/` | Vulkan device features, texture export, main pass, graphics API choice, Voxy, Sodium and Vitrail hooks |
+| `mod/.../mixin/` | Vulkan device features, texture export, main pass, graphics API choice, Voxy, Sodium, HiZ and readback hooks |
 
 ## Known issues
 
@@ -202,7 +203,7 @@ terrain draws over them by depth
   aren't supported, packs without Voxy support show no LODs.
 * Known Shader packs: Complementary show visual glitches. See issues.
 * Thin dark lines can show over LOD water. They also show when the game runs on OpenGL, so the interop isn't the cause.
-* Only Windows.
+* Linux external memory FD path (`GL_EXT_memory_object_fd`) is implemented but still needs real-hardware verification.
 
 ## License
 

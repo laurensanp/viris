@@ -7,6 +7,8 @@
   "client": [
     "DefaultChunkRendererMixin",
     "FrontendGpuDeviceAccessor",
+    "HiZBufferMixin",
+    "InnerWorkDebugMixin",
     "IrisVoxyRenderPipelineDataMixin",
     "IrisVoxyRenderPipelineMixin",
     "LevelRendererMixin",
@@ -21,7 +23,7 @@
     "SoftwareModelTextureBakeryMixin",
     "SpriteContentsAccessor",
     "TextureAtlasAccessor",
-    "VulkanCommandEncoderMixin",
+    "VoxyRenderSystemMixin",
     "VulkanFeatureSetsMixin",
     "VulkanGpuTextureAccessor",
     "VulkanGpuTextureMixin",

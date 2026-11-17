@@ -32,8 +32,10 @@ public final class GlContext {
         SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MAJOR_VERSION, 4);
         SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MINOR_VERSION, 6);
         SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_PROFILE_MASK, SDLVideo.SDL_GL_CONTEXT_PROFILE_CORE);
-        SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_FLAGS, SDLVideo.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+        SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_DEPTH_SIZE, 24);
+        SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_STENCIL_SIZE, 8);
         window = SDLVideo.SDL_CreateWindow("VIRIS GL", 16, 16, SDLVideo.SDL_WINDOW_OPENGL | SDLVideo.SDL_WINDOW_HIDDEN);
+
         context = window == 0L ? 0L : SDLVideo.SDL_GL_CreateContext(window);
         SDLVideo.SDL_GL_ResetAttributes();
         if (context == 0L) {
@@ -44,8 +46,9 @@ public final class GlContext {
         }
         SDLVideo.SDL_GL_MakeCurrent(window, context);
         GLCapabilities caps = GL.createCapabilities();
-        if (!caps.GL_EXT_memory_object || !caps.GL_EXT_memory_object_win32 || !caps.GL_EXT_semaphore
-            || !caps.GL_EXT_semaphore_win32) {
+        boolean hasMemInterop = caps.GL_EXT_memory_object
+                && (Interop.IS_WINDOWS ? caps.GL_EXT_memory_object_win32 : Interop.IS_LINUX && caps.GL_EXT_memory_object_fd);
+        if (!hasMemInterop) {
             Viris.LOGGER.error("VIRIS: the OpenGL driver can't share memory with Vulkan, Voxy stays off");
             destroy();
             return false;
