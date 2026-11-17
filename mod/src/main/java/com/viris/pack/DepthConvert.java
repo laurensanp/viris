@@ -18,9 +18,11 @@ public final class DepthConvert {
     private static final String FRAGMENT = """
         #version 450 core
         layout(binding = 0) uniform sampler2D source;
+        layout(location = 0) uniform bool raw;
         layout(location = 0) out float depth;
         void main() {
-            depth = 1.0 - texelFetch(source, ivec2(gl_FragCoord.xy), 0).r;
+            float d = texelFetch(source, ivec2(gl_FragCoord.xy), 0).r;
+            depth = raw ? d : 1.0 - d;
         }
         """;
 
@@ -33,6 +35,15 @@ public final class DepthConvert {
 
     /** {@code target} (R32F, same size) = 1 - {@code source} depth. */
     public static void run(int source, int target, int width, int height) {
+        draw(source, target, width, height, false);
+    }
+
+    /** {@code target} (R32F, same size) = {@code source} depth unchanged (AMD path: no shared depth images). */
+    public static void copy(int source, int target, int width, int height) {
+        draw(source, target, width, height, true);
+    }
+
+    private static void draw(int source, int target, int width, int height, boolean raw) {
         if (program == 0) {
             program = GL45C.glCreateProgram();
             int vertex = shader(GL45C.GL_VERTEX_SHADER, VERTEX);
@@ -57,6 +68,7 @@ public final class DepthConvert {
         GL45C.glDisable(GL45C.GL_BLEND);
         GL45C.glColorMask(true, true, true, true);
         GL45C.glUseProgram(program);
+        GL45C.glUniform1i(0, raw ? 1 : 0);
         GL45C.glBindTextureUnit(0, source);
         GL45C.glBindSampler(0, 0);
         GL45C.glBindVertexArray(vertexArray);

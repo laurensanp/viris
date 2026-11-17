@@ -6,7 +6,10 @@
   "compatibilityLevel": "JAVA_25",
   "client": [
     "DefaultChunkRendererMixin",
+    "DownloadStreamMixin",
     "FrontendGpuDeviceAccessor",
+    "GlPersistentMappedBufferMixin",
+    "HiZBufferMixin",
     "IrisVoxyRenderPipelineDataMixin",
     "IrisVoxyRenderPipelineMixin",
     "LevelRendererMixin",

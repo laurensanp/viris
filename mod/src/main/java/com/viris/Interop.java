@@ -142,7 +142,10 @@ public final class Interop {
             EXTMemoryObjectWin32.glImportMemoryWin32HandleEXT(memory, size,
                 EXTMemoryObjectWin32.GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, handle.get(0));
             int glTexture = GL45C.glCreateTextures(GL45C.GL_TEXTURE_2D);
+            GL45C.glTextureParameteri(glTexture, EXTMemoryObject.GL_TEXTURE_TILING_EXT, EXTMemoryObject.GL_OPTIMAL_TILING_EXT);
             EXTMemoryObject.glTextureStorageMem2DEXT(glTexture, 1, glFormat, width, height, memory, info.offset());
+            // AMD's driver still used the handle after the import returned (issue #3): close it once GL is done.
+            GL45C.glFinish();
             closeHandle(handle.get(0));
             int error = GL45C.glGetError();
             if (error != 0) {

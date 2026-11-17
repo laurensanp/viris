@@ -154,6 +154,12 @@ GitHub has no API for it: upload by hand in the repo's Settings, Social preview.
   `-Dviris.glDebug=true` logs GL errors with the Java stack. LOD water was missing: Photon's voxy_translucent discards
   where `texelFetch(depthtex1, gl_FragCoord)` < 1, and the patch's depthtex/shadowtex stand-in was 1x1 (0 outside it).
   Now screen sized, far = 1. Photon water verified in dev against a no-Voxy RD 24 shot; Complementary unchanged.
+- AMD path (2026-11-17, 0.5.0, issue #3, from lammy12k's PR #4, not merged: broken README, buffer leak, applied to every GPU):
+  `GlContext.amd()` (GL_VENDOR ATI/AMD, `-Dviris.amdPath=true|false` forces it). Then Voxy draws into GL-only colour/depth
+  and they are copied into shared RGBA8 + R32F (`DepthConvert.copy`; AMD crashed on a shared D32 image), no shared
+  semaphores (they timed out) but a CPU fence wait per frame, HiZ in DEPTH_COMPONENT32F, DownloadStream's read buffer in host
+  memory with glGetNamedBufferSubData. Interop import for all GPUs: optimal tiling set, glFinish before CloseHandle.
+  Verified on NVIDIA with the forced path, with and without Complementary (same picture). Not tested on AMD by us.
 - Lunar drops Vitrail's log lines; since 2026-11-09 VIRIS copies them to `logs/vitrail.log` in Lunar's profile
   (`LunarVitrailLog`, wraps `Vitrail.logger()`; `-Dviris.vitrailLog=true` in dev). Mobs and the hand glowing with
   Photon in Lunar (2026-11-09) were Lunar's Fullbright mod: it gives entities full block light, Photon reads that as

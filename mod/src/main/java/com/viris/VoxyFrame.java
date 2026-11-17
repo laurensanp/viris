@@ -158,13 +158,16 @@ public final class VoxyFrame {
     private static final class ImageSet {
         Interop.SharedTexture color;
         Interop.SharedTexture depth;
+        /** AMD path: Voxy draws into these GL-only targets, then they are copied into {@link #color} and {@link #depth} (R32F). */
+        int glColor;
+        int glDepth;
         /** The game's lightmap, copied in when this set was last composited; Voxy reads it when it next draws into the set. */
         final Interop.SharedTexture lightmap = Interop.createTexture("Voxy lightmap", GpuTexture.USAGE_RENDER_ATTACHMENT
             | GpuTexture.USAGE_TEXTURE_BINDING, GpuFormat.RGBA8_UNORM, GL45C.GL_RGBA8, LIGHTMAP_SIZE, LIGHTMAP_SIZE);
         /** GL signals it once Voxy drew into the set, Vulkan waits for it before the composite. */
-        final long[] glDone = Interop.createSemaphore();
+        final long[] glDone = GlContext.amd() ? null : Interop.createSemaphore();
         /** Vulkan signals it after the composite, GL waits for it before it draws into the set again. */
-        final long[] vkDone = Interop.createSemaphore();
+        final long[] vkDone = GlContext.amd() ? null : Interop.createSemaphore();
         /** Vulkan signalled vkDone and GL hasn't waited for it yet. */
         boolean vkDonePending;
 
@@ -271,10 +274,49 @@ public final class VoxyFrame {
                 GL45C.glFinish();
                 color.close();
                 depth.close();
+                if (glColor != 0) {
+                    GL45C.glDeleteTextures(new int[] {glColor, glDepth});
+                }
             }
             int usage = GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_TEXTURE_BINDING;
             color = Interop.createTexture("Voxy colour", usage, GpuFormat.RGBA8_UNORM, GL45C.GL_RGBA8, width, height);
-            depth = Interop.createTexture("Voxy depth", usage, GpuFormat.D32_FLOAT, GL45C.GL_DEPTH_COMPONENT32F, width, height);
+            if (GlContext.amd()) {
+                // AMD's driver crashed on a shared D32 image (issue #3): the shared depth is a plain R32F copy.
+                depth = Interop.createTexture("Voxy depth", usage, GpuFormat.R32_FLOAT, GL45C.GL_R32F, width, height);
+                glColor = GL45C.glCreateTextures(GL45C.GL_TEXTURE_2D);
+                GL45C.glTextureStorage2D(glColor, 1, GL45C.GL_RGBA8, width, height);
+                glDepth = GL45C.glCreateTextures(GL45C.GL_TEXTURE_2D);
+                GL45C.glTextureStorage2D(glDepth, 1, GL45C.GL_DEPTH_COMPONENT32F, width, height);
+            } else {
+                depth = Interop.createTexture("Voxy depth", usage, GpuFormat.D32_FLOAT, GL45C.GL_DEPTH_COMPONENT32F, width, height);
+            }
+        }
+    }
+
+    /**
+     * GL is done with the set: Vulkan may read it. Semaphores where they work; AMD's timed out (issue #3), so
+     * there the render thread waits for GL instead.
+     * shortcut: on the AMD path nothing makes GL wait for Vulkan's reads of a set; SETS (3) > frames in flight (2)
+     * keeps them apart in practice. Upgrade if AMD shows flicker.
+     */
+    private static void glDone(ImageSet set) {
+        if (set.glDone != null) {
+            EXTSemaphore.glSignalSemaphoreEXT((int) set.glDone[1], new int[0], set.glTextures(), set.layouts());
+            GL45C.glFlush();
+            return;
+        }
+        long fence = GL45C.glFenceSync(GL45C.GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        if (GL45C.glClientWaitSync(fence, GL45C.GL_SYNC_FLUSH_COMMANDS_BIT, 5_000_000_000L) == GL45C.GL_TIMEOUT_EXPIRED) {
+            Viris.LOGGER.warn("VIRIS: OpenGL took over 5 s for Voxy's frame");
+        }
+        GL45C.glDeleteSync(fence);
+    }
+
+    /** Vulkan waits for {@link #glDone} before it reads the set (nothing to do on the AMD path, GL already finished). */
+    private static void vulkanWaits(ImageSet set) {
+        if (set.glDone != null) {
+            VulkanCommandEncoder vulkan = (VulkanCommandEncoder) ((FrontendCommandEncoder) RenderSystem.getDevice().createCommandEncoder()).backend();
+            vulkan.waitSemaphore(set.glDone[0], 0L, ALL_COMMANDS);
         }
     }
 
@@ -324,16 +366,23 @@ public final class VoxyFrame {
         ensureResources(width, height, main.getColorTexture().getFormat());
         ImageSet set = current;
         set.waitForVulkan();
-        GL45C.glClearTexImage(set.color.glTexture(), 0, GL45C.GL_RGBA, GL45C.GL_FLOAT, new float[] {0, 0, 0, 0});
-        GL45C.glClearTexImage(set.depth.glTexture(), 0, GL45C.GL_DEPTH_COMPONENT, GL45C.GL_FLOAT, new float[] {clearDepth()});
+        boolean local = set.glColor != 0;
+        int colorTarget = local ? set.glColor : set.color.glTexture();
+        int depthTarget = local ? set.glDepth : set.depth.glTexture();
+        GL45C.glClearTexImage(colorTarget, 0, GL45C.GL_RGBA, GL45C.GL_FLOAT, new float[] {0, 0, 0, 0});
+        GL45C.glClearTexImage(depthTarget, 0, GL45C.GL_DEPTH_COMPONENT, GL45C.GL_FLOAT, new float[] {clearDepth()});
         long start = System.nanoTime();
         Viewport<?> viewport = system.setupViewport(projection, modelView, fog, width, height, cameraX, cameraY, cameraZ);
         if (viewport != null) {
-            system.renderOpaque(viewport, set.depth.glTexture(), set.color.glTexture());
+            system.renderOpaque(viewport, depthTarget, colorTarget);
         }
         long drawn = System.nanoTime();
-        EXTSemaphore.glSignalSemaphoreEXT((int) set.glDone[1], new int[0], set.glTextures(), set.layouts());
-        GL45C.glFlush();
+        if (local) {
+            GL45C.glCopyImageSubData(set.glColor, GL45C.GL_TEXTURE_2D, 0, 0, 0, 0,
+                set.color.glTexture(), GL45C.GL_TEXTURE_2D, 0, 0, 0, 0, width, height, 1);
+            com.viris.pack.DepthConvert.copy(set.glDepth, set.depth.glTexture(), width, height);
+        }
+        glDone(set);
         if (TIMING) {
             GL45C.glFinish();
             long finished = System.nanoTime();
@@ -357,8 +406,7 @@ public final class VoxyFrame {
             closeVitrailPasses();
         }
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-        VulkanCommandEncoder vulkan = (VulkanCommandEncoder) ((FrontendCommandEncoder) encoder).backend();
-        vulkan.waitSemaphore(set.glDone[0], 0L, ALL_COMMANDS);
+        vulkanWaits(set);
         GpuSampler nearest = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST);
         try (RenderPass pass = encoder.createRenderPass(() -> "Voxy LODs", main.getColorTextureView(), Optional.empty(),
             main.getDepthTextureView(), OptionalDouble.empty())) {
@@ -372,8 +420,10 @@ public final class VoxyFrame {
             pass.setUniform("Lightmap", Minecraft.getInstance().gameRenderer.levelLightmap(), nearest);
             pass.draw(3, 1, 0, 0);
         }
-        vulkan.signalSemaphore(set.vkDone[0], 0L, ALL_COMMANDS);
-        set.vkDonePending = true;
+        if (set.vkDone != null) {
+            ((VulkanCommandEncoder) ((FrontendCommandEncoder) encoder).backend()).signalSemaphore(set.vkDone[0], 0L, ALL_COMMANDS);
+            set.vkDonePending = true;
+        }
         frame = (frame + 1) % SETS;
         if (sets[frame] == null) {
             sets[frame] = new ImageSet();
@@ -471,16 +521,14 @@ public final class VoxyFrame {
             GL45C.glClearTexImage(set.vxOpaque.glTexture(), 0, GL45C.GL_RED, GL45C.GL_FLOAT, new float[] {1, 1, 1, 1});
             GL45C.glClearTexImage(set.vxTrans.glTexture(), 0, GL45C.GL_RED, GL45C.GL_FLOAT, new float[] {1, 1, 1, 1});
         }
-        EXTSemaphore.glSignalSemaphoreEXT((int) set.glDone[1], new int[0], set.glTextures(), set.layouts());
-        GL45C.glFlush();
+        glDone(set);
         // Vulkan waits here, before the world pass: at the pack's deferred stage the game's level pass is
         // still open, and no semaphore operation may go in there. vkDone follows with the frame's submit.
         closeVitrailPasses();
-        VulkanCommandEncoder vulkan = (VulkanCommandEncoder) ((FrontendCommandEncoder) RenderSystem.getDevice().createCommandEncoder()).backend();
-        vulkan.waitSemaphore(set.glDone[0], 0L, ALL_COMMANDS);
+        vulkanWaits(set);
         pendingPackSet = set;
         frameSet = set;
-        vkDoneAtSubmit = true;
+        vkDoneAtSubmit = set.vkDone != null;
         frame = (frame + 1) % SETS;
         if (sets[frame] == null) {
             sets[frame] = new ImageSet();

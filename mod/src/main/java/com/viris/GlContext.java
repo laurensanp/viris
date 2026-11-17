@@ -17,12 +17,21 @@ public final class GlContext {
     private static long window;
     private static long context;
     private static GLCapabilities capabilities;
+    private static boolean amd;
 
     private GlContext() {
     }
 
     public static boolean ready() {
         return capabilities != null;
+    }
+
+    /**
+     * AMD's driver (issue #3, RX 6500 XT): crashes on shared depth images and packed depth-stencil HiZ, and its
+     * cross-API semaphores time out. VoxyFrame takes the workaround path then. {@code -Dviris.amdPath} forces it either way.
+     */
+    public static boolean amd() {
+        return amd;
     }
 
     /** Creates the context (main thread, after the game's window exists). False when OpenGL 4.6 or interop is missing. */
@@ -55,6 +64,12 @@ public final class GlContext {
             GL45C.glClipControl(GL45C.GL_LOWER_LEFT, GL45C.GL_ZERO_TO_ONE);
         }
         capabilities = caps;
+        String vendor = String.valueOf(GL45C.glGetString(GL45C.GL_VENDOR));
+        String forced = System.getProperty("viris.amdPath");
+        amd = forced != null ? Boolean.parseBoolean(forced) : vendor.contains("ATI") || vendor.contains("AMD");
+        if (amd) {
+            Viris.LOGGER.info("VIRIS: AMD path (local GL targets, CPU fence instead of shared semaphores)");
+        }
         if (Boolean.getBoolean("viris.glDebug")) {
             // Dev: every GL error with the Java stack that caused it.
             GL45C.glEnable(GL45C.GL_DEBUG_OUTPUT);
