@@ -16,7 +16,7 @@ Voxy draws by itself and VIRIS does nothing (tested 2026-11-02, also with SIRIS,
 | Path | What |
 |---|---|
 | `mod/` | the Fabric mod (Java), same layout as SIRIS; `src/main/java/com/viris/`: `VoxyFrame` (the frame), `GlContext`, `Interop`, `AtlasReader`, `pack/` (shader packs), `mixin/` |
-| `libs/` (ignored) | compile-only jars: Voxy 0.2.20-beta, Sodium 0.9.2, Vitrail 0.13.0-beta (Modrinth) |
+| `libs/` (ignored) | compile-only jars: Voxy 0.2.20-beta, Sodium 0.9.3, Vitrail 0.13.0-beta (Modrinth) |
 | `mod/run/` (ignored) | test game dir: Sodium, Fabric API, Voxy, optional Vitrail in `mods/`, `options.txt`, `saves/vulkan-test` |
 
 Social preview: `.github/assets/social-preview.png`, 1280x640, SIRIS' design in VIRIS' colours (Bahnschrift, same positions).

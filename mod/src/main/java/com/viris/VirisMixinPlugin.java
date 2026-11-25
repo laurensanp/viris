@@ -60,6 +60,63 @@ public class VirisMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+        if (targetClassName.equals(DEFAULT_CHUNK_RENDERER)) {
+            addOldEndCall(targetClass);
+        }
+    }
+
+    private static final String DEFAULT_CHUNK_RENDERER = "net.caffeinemc.mods.sodium.client.render.chunk.DefaultChunkRenderer";
+    private static final String SHADER_CHUNK_RENDERER = "net/caffeinemc/mods/sodium/client/render/chunk/ShaderChunkRenderer";
+    private static final String OLD_END_DESC = "(Lnet/caffeinemc/mods/sodium/client/render/chunk/terrain/TerrainRenderPass;)V";
+
+    /**
+     * Sodium 0.9.3 changed {@code end(TerrainRenderPass)} to {@code end()}; Voxy 0.2.20's draw hook injects before
+     * the old call and crashes the join without it. A placeholder old call goes before the new one (preApply
+     * runs before all injections), and {@link #dropOldEndCall} turns it into POP2 after Voxy injected there.
+     */
+    private static void addOldEndCall(ClassNode target) {
+        for (MethodNode method : target.methods) {
+            if (!method.name.equals("render")) {
+                continue;
+            }
+            for (AbstractInsnNode insn : method.instructions.toArray()) {
+                if (insn instanceof MethodInsnNode call && call.name.equals("end") && call.desc.equals(OLD_END_DESC)) {
+                    return; // Sodium 0.9.2: nothing to do
+                }
+            }
+            for (AbstractInsnNode insn : method.instructions.toArray()) {
+                if (insn instanceof MethodInsnNode call && call.name.equals("end") && call.desc.equals("()V")) {
+                    InsnList placeholder = new InsnList();
+                    placeholder.add(new org.objectweb.asm.tree.VarInsnNode(Opcodes.ALOAD, 0));
+                    placeholder.add(new InsnNode(Opcodes.ACONST_NULL));
+                    placeholder.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, SHADER_CHUNK_RENDERER, "end", OLD_END_DESC, false));
+                    method.instructions.insertBefore(call, placeholder);
+                    Viris.LOGGER.info("VIRIS: Sodium's new end() call adapted for Voxy's draw hook");
+                    return;
+                }
+            }
+        }
+    }
+
+    private static void dropOldEndCall(ClassNode target) {
+        for (MethodNode method : target.methods) {
+            for (AbstractInsnNode insn : method.instructions.toArray()) {
+                if (insn instanceof MethodInsnNode call && call.owner.equals(SHADER_CHUNK_RENDERER)
+                    && call.name.equals("end") && call.desc.equals(OLD_END_DESC) && method.name.equals("render")
+                    && hasNewEnd(method)) {
+                    method.instructions.set(call, new InsnNode(Opcodes.POP2));
+                }
+            }
+        }
+    }
+
+    private static boolean hasNewEnd(MethodNode method) {
+        for (AbstractInsnNode insn : method.instructions.toArray()) {
+            if (insn instanceof MethodInsnNode call && call.name.equals("end") && call.desc.equals("()V")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -68,7 +125,8 @@ public class VirisMixinPlugin implements IMixinConfigPlugin {
             skipOnVulkan(targetClass, "voxy$injectIrisCompat");
             return;
         }
-        if (targetClassName.equals("net.caffeinemc.mods.sodium.client.render.chunk.DefaultChunkRenderer")) {
+        if (targetClassName.equals(DEFAULT_CHUNK_RENDERER)) {
+            dropOldEndCall(targetClass);
             skipOnVulkan(targetClass, "voxy$injectRender");
             return;
         }

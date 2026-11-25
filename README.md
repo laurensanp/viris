@@ -55,9 +55,9 @@ Mods, all in `.minecraft/mods/` (or the Lunar profile's `mods/`):
 |---|---|---|
 | `viris-<version>+mc26.3.jar` (this mod) | [Modrinth](https://modrinth.com/mod/viris) or [Releases](https://github.com/laurensanp/viris/releases) | Voxy on Vulkan |
 | [Voxy](https://modrinth.com/mod/voxy) 0.2.20-beta | Modrinth | the LODs |
-| [Sodium](https://modrinth.com/mod/sodium) 0.9.x for 26.3 | Modrinth | the terrain pass hook |
+| [Sodium](https://modrinth.com/mod/sodium) 0.9.x for 26.3 (0.9.3 needs VIRIS 0.5.1+) | Modrinth | the terrain pass hook |
 | [Fabric API](https://modrinth.com/mod/fabric-api) | Modrinth | Voxy |
-| [Vitrail](https://modrinth.com/mod/vitrail-shaders) for 26.3 (tested: 0.13.0-beta) | Modrinth | optional, shader packs on Vulkan |
+| [Vitrail](https://modrinth.com/mod/vitrail-shaders) for 26.3 (tested: 0.13.0-beta; that version crashes with Sodium 0.9.3, use Sodium 0.9.2 with it) | Modrinth | optional, shader packs on Vulkan |
 
 ## Install (players)
 
@@ -134,7 +134,7 @@ Everything that is ours is in this repository. What is not ours is downloaded, n
 | Item | Where it goes | Source |
 |---|---|---|
 | Voxy 0.2.20-beta jar (compile only) | `libs/voxy-0.2.20-beta.jar` | [Modrinth](https://modrinth.com/mod/voxy) |
-| Sodium 0.9.2 jar (compile only) | `libs/sodium-fabric-0.9.2+mc26.3.jar` | [Modrinth](https://modrinth.com/mod/sodium/version/mc26.3-0.9.2-fabric) |
+| Sodium 0.9.3 jar (compile only) | `libs/sodium-fabric-0.9.3+mc26.3.jar` | [Modrinth](https://modrinth.com/mod/sodium/version/mc26.3-0.9.3-fabric) |
 | Vitrail 0.13.0-beta jar (compile only) | `libs/vitrail-0.13.0-beta+mc26.3.jar` | [Modrinth](https://modrinth.com/mod/vitrail-shaders) |
 | Sodium, Fabric API, Voxy, Vitrail jars (test runs) | `mod/run/mods/` | Modrinth |
 | Shader packs (test runs) | `mod/run/shaderpacks/` | Modrinth (Solas, Complementary, ...) |
