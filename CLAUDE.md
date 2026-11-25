@@ -16,7 +16,7 @@ Voxy draws by itself and VIRIS does nothing (tested 2026-11-02, also with SIRIS,
 | Path | What |
 |---|---|
 | `mod/` | the Fabric mod (Java), same layout as SIRIS; `src/main/java/com/viris/`: `VoxyFrame` (the frame), `GlContext`, `Interop`, `AtlasReader`, `pack/` (shader packs), `mixin/` |
-| `libs/` (ignored) | compile-only jars: Voxy 0.2.20-beta, Sodium 0.9.2, Vitrail 0.13.0-beta (Modrinth) |
+| `libs/` (ignored) | compile-only jars: Voxy 0.2.20-beta, Sodium 0.9.3, Vitrail 0.13.0-beta (Modrinth) |
 | `mod/run/` (ignored) | test game dir: Sodium, Fabric API, Voxy, optional Vitrail in `mods/`, `options.txt`, `saves/vulkan-test` |
 
 Social preview: `.github/assets/social-preview.png`, 1280x640, SIRIS' design in VIRIS' colours (Bahnschrift, same positions).
@@ -178,6 +178,7 @@ IHYZKsvL, created 2026-11-01 by API, still waiting for review). New version: POS
 Fabric API required, Vitrail optional), then PATCH /v3/version `client_only`. Gallery: 4 images (retaken 2026-11-02 with DLSS model M; dev world, `gamemode spectator`, `tp @p 0 130 0 -90 10` at time 2000, compare shot without the Voxy and VIRIS jars).
 
 Newest first:
+- v0.5.1 (2026-11-25): works with Sodium 0.9.3 (issue #6: its `end(TerrainRenderPass)` became `end()`, Voxy's draw hook found no target and crashed the join; `VirisMixinPlugin` adds a placeholder old call in preApply, POP2 in postApply). Vitrail 0.13.0 crashes with Sodium 0.9.3 by itself (its `MixinShaderChunkRenderer`, `begin` lost two parameters); dev `mod/run/mods-off/` holds its jar meanwhile. Released from branch `perf/interop-overhead` (not merged into main yet). Modrinth N40MPoxX.
 - v0.5.0 (2026-11-17): AMD GPUs work (issue #3, ported from PR #4); shader pack LODs drawn straight into the shared images. Modrinth cGe1V1CM.
 - v0.4.1 (2026-11-14): LOD shadows/reflections no longer lag when turning (Complementary, issue #1). Modrinth R2dopcva.
 - v0.4.0 (2026-11-09): Photon works (LOD colours and water), Vitrail log copied to logs/vitrail.log in Lunar. Modrinth bez0iC7n.
